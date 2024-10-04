@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Windows;
 
 [RequireComponent(typeof(CharacterController))]
 public class ThirdPersonController : MonoBehaviour
@@ -12,7 +13,14 @@ public class ThirdPersonController : MonoBehaviour
     [Tooltip("The character uses its own gravity value. The engine default is -9.81f")]
     public float gravity = -9.81f;
 
-    private Vector3 moveInput = Vector3.zero;
+    [Tooltip("How fast the character turns to face movement direction")]
+    [Min(0.0f)]
+    public float rotationSmoothTime = 0.12f;
+
+    private Vector2 moveInput = Vector2.zero;
+
+    private float targetRotation = 0.0f;
+    private float rotationVelocity;
 
     private CharacterController characterController;
 
@@ -25,15 +33,25 @@ public class ThirdPersonController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Vector3 velocity = moveInput.normalized * moveSpeed;
-        velocity.y += gravity;
+        Vector3 inputDirection = new Vector3(moveInput.x, 0.0f, moveInput.y).normalized;
 
-        characterController.Move(velocity * Time.deltaTime);
+        if (moveInput.sqrMagnitude > 0.0f)
+        {
+            targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+            float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
+            transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
+
+            Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+
+            Vector3 velocity = targetDirection.normalized * moveSpeed;
+            velocity.y += gravity;
+
+            characterController.Move(velocity * Time.deltaTime);
+        }
     }
 
     public void OnMovementInput(InputAction.CallbackContext context)
     {
-        Vector2 inputValue = context.ReadValue<Vector2>();
-        moveInput.Set(inputValue.x, 0.0f, inputValue.y);
+        moveInput = context.ReadValue<Vector2>(); 
     }
 }
