@@ -1030,10 +1030,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 2
   sprintSpeed: 6
-  shouldHoldSprintKey: 0
-  gravity: -9.81
   rotationSmoothTime: 0.12
+  shouldHoldSprintKey: 0
+  JumpHeight: 1.2
+  gravity: -9.81
   moveSpeedParameterName: MoveSpeed
+  jumpTriggerParameterName: Jump
 --- !u!114 &1419737469215744733
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1127,7 +1129,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 6827435623425878479}
         m_TargetAssemblyTypeName: ThirdPersonController, Assembly-CSharp
-        m_MethodName: OnSprintInput
+        m_MethodName: OnJumpInput
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
