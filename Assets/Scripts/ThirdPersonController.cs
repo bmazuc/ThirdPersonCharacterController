@@ -31,13 +31,21 @@ public class ThirdPersonController : MonoBehaviour
     [Tooltip("The maximum negative velocity we can reach. Set it to 0.0f to ignore it.")]
     public float maxFallVelocity = 50.0f;
 
+    [Header("GroundDetection")]
+    [Tooltip("Useful for rough ground")]
+    public float groundCheckOffset = -0.14f;
+
+    [Tooltip("What layers the character uses as ground")]
+    public LayerMask groundLayers;
+
     [Header("Animator")]
+    public Animator animator;
     public string moveSpeedParameterName = "MoveSpeed";
     public string jumpTriggerParameterName = "Jump";
     public string groundedParameterName = "Grounded";
-    public string yVelocityParameterName = "YVelocity";
 
     private bool isSprinting = false;
+    private bool isGrounded = false;
 
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
@@ -45,6 +53,7 @@ public class ThirdPersonController : MonoBehaviour
     private float targetRotation = 0.0f;
     private float rotationVelocity;
     private Vector3 velocity;
+    private float groundedSphereRadius;
 
     // animation IDs
     private int animIDMoveSpeed;
@@ -52,13 +61,13 @@ public class ThirdPersonController : MonoBehaviour
     private int animIDGrounded;
 
     private CharacterController characterController;
-    private Animator animator;
 
     // Start is called before the first frame update
     void Start()
     {
         characterController = GetComponent<CharacterController>();
-        animator = GetComponent<Animator>();
+
+        groundedSphereRadius = characterController.radius;
 
         AssignAnimationIDs();
     }
@@ -66,11 +75,7 @@ public class ThirdPersonController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (animator)
-        {
-            animator.SetBool(animIDGrounded, characterController.isGrounded);
-        }
-
+        CheckIfGrounded();
         ApplyGravity();
         Jump();
         Move();
@@ -82,7 +87,8 @@ public class ThirdPersonController : MonoBehaviour
 
         float inputSqrMagnitude = moveInput.sqrMagnitude;
 
-        float speed = isSprinting ? sprintSpeed : moveSpeed * moveInput.magnitude;
+        float speed = isSprinting ? sprintSpeed : moveSpeed;
+        speed *= moveInput.magnitude;
 
         if (inputSqrMagnitude > 0.0f)
         {
@@ -104,9 +110,24 @@ public class ThirdPersonController : MonoBehaviour
         }
     }
 
+    // Use a custom ground check instead of charactercontroller isGrounded as the built-in value
+    // doen't seems to be reliable
+    private void CheckIfGrounded()
+    {
+        Vector3 spherePosition = transform.position;
+        spherePosition.y -= groundCheckOffset;
+
+        isGrounded = Physics.CheckSphere(spherePosition, groundedSphereRadius, groundLayers, QueryTriggerInteraction.Ignore);
+
+        if (animator)
+        {
+            animator.SetBool(animIDGrounded, isGrounded);
+        }
+    }
+
     private void Jump()
     {
-        if (jumpInput && characterController.isGrounded)
+        if (jumpInput && isGrounded)
         {
             // Formula came from https://docs.unity3d.com/ScriptReference/CharacterController.Move.html
             velocity.y += Mathf.Sqrt(JumpHeight * -2.0f * gravity);
@@ -121,7 +142,7 @@ public class ThirdPersonController : MonoBehaviour
 
     private void ApplyGravity()
     {
-        if (!characterController.isGrounded)
+        if (!isGrounded)
         {
             velocity.y += gravity * Time.deltaTime;
 
