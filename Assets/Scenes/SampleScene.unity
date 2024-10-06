@@ -797,10 +797,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cba5cdb1e9fb82044a63477b4fbd29ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 2
-  sprintSpeed: 6
+  walkSpeed: 2
+  runSpeed: 6
   rotationSmoothTime: 0.12
-  shouldHoldSprintKey: 0
+  shouldHoldRunKey: 0
   JumpHeight: 1.2
   gravity: -9.81
   maxFallVelocity: 50
@@ -812,7 +812,6 @@ MonoBehaviour:
   moveSpeedParameterName: MoveSpeed
   jumpTriggerParameterName: Jump
   groundedParameterName: Grounded
-  yVelocityParameterName: YVelocity
 --- !u!1 &477925533679267718
 GameObject:
   m_ObjectHideFlags: 0
@@ -2230,7 +2229,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 420187321678482464}
         m_TargetAssemblyTypeName: ThirdPersonController, Assembly-CSharp
-        m_MethodName: OnSprintInput
+        m_MethodName: OnRunInput
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2258,6 +2257,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: 2cacd7a9-d58d-49f3-bdd2-93d2f1806d06
     m_ActionName: Player/Jump[/Keyboard/space]
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 420187321678482464}
+        m_TargetAssemblyTypeName: ThirdPersonController, Assembly-CSharp
+        m_MethodName: OnAutoRunInput
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: a82d0230-de89-45d8-9d9b-4bdf0d532099
+    m_ActionName: Player/AutoRun[/Keyboard/ctrl]
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Player

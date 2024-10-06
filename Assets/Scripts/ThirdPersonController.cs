@@ -9,17 +9,17 @@ using UnityEngine.Windows;
 public class ThirdPersonController : MonoBehaviour
 {
     [Header("Movement")]
-    [Tooltip("Move speed of the character")]
-    public float moveSpeed = 2.0f;
+    [Tooltip("Walk speed of the character")]
+    public float walkSpeed = 2.0f;
 
-    [Tooltip("Sprint speed of the character")]
-    public float sprintSpeed = 6.0f;
+    [Tooltip("Run speed of the character")]
+    public float runSpeed = 6.0f;
 
     [Tooltip("How fast the character turns to face movement direction")]
     [Min(0.0f)]
     public float rotationSmoothTime = 0.12f;
 
-    public bool shouldHoldSprintKey = false;
+    public bool shouldHoldRunKey = false;
 
     [Header("Jump")]
     [Tooltip("The height the player can jump")]
@@ -44,9 +44,12 @@ public class ThirdPersonController : MonoBehaviour
     public string jumpTriggerParameterName = "Jump";
     public string groundedParameterName = "Grounded";
 
-    private bool isSprinting = false;
+    private bool isRunning = false;
     private bool isGrounded = false;
+    public bool mustAutoRun = false;
+    private bool areMoveKeyReleasedWhileAutoRun = false;
 
+    private Vector2 currentMoveInput = Vector2.zero;
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
 
@@ -83,12 +86,18 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Move()
     {
-        Vector3 inputDirection = new Vector3(moveInput.x, 0.0f, moveInput.y).normalized;
+        currentMoveInput = moveInput;
+        if (mustAutoRun)
+        {
+            currentMoveInput.Set(transform.forward.x, transform.forward.z);
+        }
 
-        float inputSqrMagnitude = moveInput.sqrMagnitude;
+        Vector3 inputDirection = new Vector3(currentMoveInput.x, 0.0f, currentMoveInput.y).normalized;
 
-        float speed = isSprinting ? sprintSpeed : moveSpeed;
-        speed *= moveInput.magnitude;
+        float inputSqrMagnitude = currentMoveInput.sqrMagnitude;
+
+        float speed = isRunning ? runSpeed : walkSpeed;
+        speed *= currentMoveInput.magnitude;
 
         if (inputSqrMagnitude > 0.0f)
         {
@@ -168,6 +177,22 @@ public class ThirdPersonController : MonoBehaviour
 
     public void OnMovementInput(InputAction.CallbackContext context)
     {
+        if (mustAutoRun)
+        {
+            if (context.canceled)
+            {
+                areMoveKeyReleasedWhileAutoRun = true;
+                return;
+            }
+
+            if (!areMoveKeyReleasedWhileAutoRun)
+            {
+                return;
+            }
+
+            mustAutoRun = false;
+        }
+
         moveInput = context.ReadValue<Vector2>();
     }
 
@@ -179,15 +204,27 @@ public class ThirdPersonController : MonoBehaviour
         }
     }
 
-    public void OnSprintInput(InputAction.CallbackContext context)
+    public void OnRunInput(InputAction.CallbackContext context)
     {
         if (context.started)
         {
-            isSprinting = shouldHoldSprintKey ? true : !isSprinting;
+            isRunning = shouldHoldRunKey ? true : !isRunning;
         }
-        else if (context.canceled && shouldHoldSprintKey)
+        else if (context.canceled && shouldHoldRunKey)
         {
-            isSprinting = false;
+            isRunning = false;
+        }
+    }
+
+    public void OnAutoRunInput(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            mustAutoRun = !mustAutoRun;
+            if (mustAutoRun)
+            {
+                moveInput.Set(0.0f, 0.0f);
+            }
         }
     }
 }
