@@ -24,6 +24,14 @@ public class ThirdPersonController : MonoBehaviour
         "\nSnapping is linked to step value from character controller.")]
     public bool snapToGround = true;
 
+    [Tooltip("How many time need to reach the target speed if speed under it")]
+    public float accelerationTime = 0.1f;
+    [Tooltip("How many time need to reach the target speed if speed over it")]
+    public float deccelerationTime = 0.1f;
+    public float speedOffset = 0.1f;
+
+    private float speedVelocity;
+
     [Header("Jump")]
     [Tooltip("The height the player can jump")]
     public float JumpHeight = 1.2f;
@@ -55,7 +63,6 @@ public class ThirdPersonController : MonoBehaviour
     private bool mustAutoRun = false;
     private bool areMoveKeyReleasedWhileAutoRun = false;
 
-    private Vector2 currentMoveInput = Vector2.zero;
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
 
@@ -103,52 +110,80 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Move()
     {
-        float speed = 0.0f;
-        float inputSqrMagnitude = 0.0f;
+        Vector3 inputDirection = GetInputDirection();
 
-        if (canMove)
+        float speed = ComputeSpeed(inputDirection);
+        
+        if (inputDirection.sqrMagnitude > 0.0f)
         {
-            currentMoveInput = moveInput;
-            if (mustAutoRun)
+            // Make the character rotate toward the input relatively to the camera
+            targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+            if (!mustAutoRun)
             {
-                currentMoveInput.Set(transform.forward.x, transform.forward.z);
+                targetRotation += mainCamera.transform.eulerAngles.y;
             }
-
-            Vector3 inputDirection = new Vector3(currentMoveInput.x, 0.0f, currentMoveInput.y).normalized;
-
-            inputSqrMagnitude = currentMoveInput.sqrMagnitude;
-
-            speed = isRunning ? runSpeed : walkSpeed;
-            speed *= currentMoveInput.magnitude;
-
-            if (inputSqrMagnitude > 0.0f)
-            {
-                // Make the character rotate toward the input relatively to the camera
-                targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
-                if (!mustAutoRun)
-                {
-                    targetRotation += mainCamera.transform.eulerAngles.y;
-                }
-                float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
-                transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
-            }
-
-            Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
-
-            Vector3 moveVelocity = targetDirection.normalized * speed;
-            velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
+            float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
+            transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
         }
-        else
-        {
-            velocity.Set(0.0f, velocity.y, 0.0f);
-        }
+
+        Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+
+        Vector3 moveVelocity = targetDirection.normalized * speed;
+        velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
 
         characterController.Move(velocity * Time.deltaTime);
 
         if (animator)
         {
-            animator.SetFloat(animIDMoveSpeed, inputSqrMagnitude * speed);
+            animator.SetFloat(animIDMoveSpeed, speed);
         }
+    }
+
+    private Vector3 GetInputDirection()
+    {
+        if (mustAutoRun)
+        {
+            return new Vector3(transform.forward.x, 0.0f, transform.forward.z).normalized;
+        }
+
+        if (!canMove)
+        {
+            return Vector3.zero;
+        }
+
+        return new Vector3(moveInput.x, 0.0f, moveInput.y).normalized;
+    }
+
+    private float ComputeSpeed(Vector3 inputDirection)
+    {
+        if (canMove)
+        {
+            float targetSpeed = isRunning ? runSpeed : walkSpeed;
+
+            if (inputDirection.sqrMagnitude == 0.0f)
+            {
+                targetSpeed = 0.0f;
+            }
+
+            float currentHorizontalSpeed = new Vector3(velocity.x, 0.0f, velocity.z).magnitude;
+
+            bool mustAccelerate = currentHorizontalSpeed < targetSpeed - speedOffset;
+            bool mustDeccelerate = currentHorizontalSpeed > targetSpeed + speedOffset;
+
+            if (mustAccelerate || mustDeccelerate) 
+            {
+                float speedChangeTime = mustAccelerate ? accelerationTime : deccelerationTime;
+
+                float speed = Mathf.SmoothDamp(currentHorizontalSpeed, targetSpeed * inputDirection.magnitude, ref speedVelocity,
+                    speedChangeTime);
+
+                return speed;
+            }
+
+            return targetSpeed;
+        }
+
+        return 0.0f;
     }
 
     // Use a custom ground check instead of charactercontroller isGrounded as the built-in value

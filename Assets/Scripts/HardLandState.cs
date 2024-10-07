@@ -10,7 +10,6 @@ public class HardLandState : StateMachineBehaviour
         ThirdPersonController controller = animator.gameObject.transform.parent.GetComponent<ThirdPersonController>();
         if (controller)
         {
-            Debug.Log("test");
             controller.EnableMovement(false);
         }
     }
