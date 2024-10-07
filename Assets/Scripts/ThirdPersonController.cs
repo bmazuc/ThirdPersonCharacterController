@@ -20,6 +20,9 @@ public class ThirdPersonController : MonoBehaviour
     public float rotationSmoothTime = 0.12f;
 
     public bool shouldHoldRunKey = false;
+    [Tooltip("Should the character snap to the ground ? Useful for walking down stairs for example. " +
+        "\nSnapping is linked to step value from character controller.")]
+    public bool snapToGround = true;
 
     [Header("Jump")]
     [Tooltip("The height the player can jump")]
@@ -46,7 +49,7 @@ public class ThirdPersonController : MonoBehaviour
 
     private bool isRunning = false;
     private bool isGrounded = false;
-    public bool mustAutoRun = false;
+    private bool mustAutoRun = false;
     private bool areMoveKeyReleasedWhileAutoRun = false;
 
     private Vector2 currentMoveInput = Vector2.zero;
@@ -123,6 +126,8 @@ public class ThirdPersonController : MonoBehaviour
         Vector3 moveVelocity = targetDirection.normalized * speed;
         velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
 
+        //velocity.y = -characterController.stepOffset / Time.deltaTime;
+
         characterController.Move(velocity * Time.deltaTime);
 
         if (animator)
@@ -139,7 +144,7 @@ public class ThirdPersonController : MonoBehaviour
         spherePosition.y -= groundCheckOffset;
 
         isGrounded = Physics.CheckSphere(spherePosition, groundedSphereRadius, groundLayers, QueryTriggerInteraction.Ignore);
-
+        
         if (animator)
         {
             animator.SetBool(animIDGrounded, isGrounded);
@@ -174,7 +179,7 @@ public class ThirdPersonController : MonoBehaviour
         }
         else if (velocity.y < 0)
         {
-            velocity.y = 0f;
+            velocity.y = snapToGround ? (-characterController.stepOffset / Time.deltaTime) : 0f;
         }
     }
 
