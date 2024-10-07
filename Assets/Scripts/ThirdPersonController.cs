@@ -64,6 +64,15 @@ public class ThirdPersonController : MonoBehaviour
     private int animIDGrounded;
 
     private CharacterController characterController;
+    private GameObject mainCamera;
+
+    private void Awake()
+    {
+        if (mainCamera == null)
+        {
+            mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+        }
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -101,7 +110,10 @@ public class ThirdPersonController : MonoBehaviour
 
         if (inputSqrMagnitude > 0.0f)
         {
+            // Make the character rotate toward the input relatively to the camera
             targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+            targetRotation += mainCamera.transform.eulerAngles.y;
+
             float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
             transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
         }
