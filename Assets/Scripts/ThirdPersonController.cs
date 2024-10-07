@@ -33,6 +33,8 @@ public class ThirdPersonController : MonoBehaviour
     public float gravity = -9.81f;
     [Tooltip("The maximum negative velocity we can reach. Set it to 0.0f to ignore it.")]
     public float maxFallVelocity = 50.0f;
+    public float minDistanceForHardLanding = 3.0f;
+    private Vector3 characterPositionBeforeFall;
 
     [Header("GroundDetection")]
     [Tooltip("Useful for rough ground")]
@@ -46,6 +48,7 @@ public class ThirdPersonController : MonoBehaviour
     public string moveSpeedParameterName = "MoveSpeed";
     public string jumpTriggerParameterName = "Jump";
     public string groundedParameterName = "Grounded";
+    public string hardLandParameterName = "isHardLanding";
 
     private bool isRunning = false;
     private bool isGrounded = false;
@@ -65,9 +68,11 @@ public class ThirdPersonController : MonoBehaviour
     private int animIDMoveSpeed;
     private int animIDJump;
     private int animIDGrounded;
+    private int animIDHardLand;
 
     private CharacterController characterController;
     private GameObject mainCamera;
+    private bool canMove = true;
 
     private void Awake()
     {
@@ -98,35 +103,45 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Move()
     {
-        currentMoveInput = moveInput;
-        if (mustAutoRun)
+        float speed = 0.0f;
+        float inputSqrMagnitude = 0.0f;
+
+        if (canMove)
         {
-            currentMoveInput.Set(transform.forward.x, transform.forward.z);
+            currentMoveInput = moveInput;
+            if (mustAutoRun)
+            {
+                currentMoveInput.Set(transform.forward.x, transform.forward.z);
+            }
+
+            Vector3 inputDirection = new Vector3(currentMoveInput.x, 0.0f, currentMoveInput.y).normalized;
+
+            inputSqrMagnitude = currentMoveInput.sqrMagnitude;
+
+            speed = isRunning ? runSpeed : walkSpeed;
+            speed *= currentMoveInput.magnitude;
+
+            if (inputSqrMagnitude > 0.0f)
+            {
+                // Make the character rotate toward the input relatively to the camera
+                targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+                if (!mustAutoRun)
+                {
+                    targetRotation += mainCamera.transform.eulerAngles.y;
+                }
+                float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
+                transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
+            }
+
+            Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+
+            Vector3 moveVelocity = targetDirection.normalized * speed;
+            velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
         }
-
-        Vector3 inputDirection = new Vector3(currentMoveInput.x, 0.0f, currentMoveInput.y).normalized;
-
-        float inputSqrMagnitude = currentMoveInput.sqrMagnitude;
-
-        float speed = isRunning ? runSpeed : walkSpeed;
-        speed *= currentMoveInput.magnitude;
-
-        if (inputSqrMagnitude > 0.0f)
+        else
         {
-            // Make the character rotate toward the input relatively to the camera
-            targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
-            targetRotation += mainCamera.transform.eulerAngles.y;
-
-            float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
-            transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
+            velocity.Set(0.0f, velocity.y, 0.0f);
         }
-
-        Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
-
-        Vector3 moveVelocity = targetDirection.normalized * speed;
-        velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
-
-        //velocity.y = -characterController.stepOffset / Time.deltaTime;
 
         characterController.Move(velocity * Time.deltaTime);
 
@@ -140,11 +155,26 @@ public class ThirdPersonController : MonoBehaviour
     // doen't seems to be reliable
     private void CheckIfGrounded()
     {
+        bool wasGrounded = isGrounded;
+
         Vector3 spherePosition = transform.position;
         spherePosition.y -= groundCheckOffset;
 
         isGrounded = Physics.CheckSphere(spherePosition, groundedSphereRadius, groundLayers, QueryTriggerInteraction.Ignore);
         
+        if (wasGrounded != isGrounded)
+        {
+            if (wasGrounded) 
+            { 
+                characterPositionBeforeFall = transform.position;
+            }
+            else
+            {
+                float distance = Mathf.Abs(transform.position.y - characterPositionBeforeFall.y);
+                animator.SetBool(animIDHardLand, distance > minDistanceForHardLanding);
+            }
+        }
+
         if (animator)
         {
             animator.SetBool(animIDGrounded, isGrounded);
@@ -156,7 +186,7 @@ public class ThirdPersonController : MonoBehaviour
         if (jumpInput && isGrounded)
         {
             // Formula came from https://docs.unity3d.com/ScriptReference/CharacterController.Move.html
-            velocity.y += Mathf.Sqrt(JumpHeight * -2.0f * gravity);
+            velocity.y = Mathf.Sqrt(JumpHeight * -2.0f * gravity);
 
             if (animator)
             {
@@ -188,6 +218,12 @@ public class ThirdPersonController : MonoBehaviour
         animIDMoveSpeed = Animator.StringToHash(moveSpeedParameterName);
         animIDJump = Animator.StringToHash(jumpTriggerParameterName);
         animIDGrounded = Animator.StringToHash(groundedParameterName);
+        animIDHardLand = Animator.StringToHash(hardLandParameterName);
+    }
+
+    public void EnableMovement(bool enabled)
+    {
+        canMove = enabled;
     }
 
     // Inputs
