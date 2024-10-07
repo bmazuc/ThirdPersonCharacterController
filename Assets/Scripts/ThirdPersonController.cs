@@ -61,7 +61,7 @@ public class ThirdPersonController : MonoBehaviour
 
     private float targetRotation = 0.0f;
     private float rotationVelocity;
-    private Vector3 velocity;
+    public Vector3 velocity;
     private float groundedSphereRadius;
 
     // animation IDs
@@ -167,6 +167,8 @@ public class ThirdPersonController : MonoBehaviour
             if (wasGrounded) 
             { 
                 characterPositionBeforeFall = transform.position;
+                // Cancel snap to ground velocity;
+                velocity.y = 0.0f;
             }
             else
             {
@@ -207,7 +209,7 @@ public class ThirdPersonController : MonoBehaviour
                 velocity.y = maxFallVelocity;
             }
         }
-        else if (velocity.y < 0)
+        else// if (velocity.y < 0)
         {
             velocity.y = snapToGround ? (-characterController.stepOffset / Time.deltaTime) : 0f;
         }
