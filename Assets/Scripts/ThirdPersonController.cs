@@ -70,6 +70,7 @@ public class ThirdPersonController : MonoBehaviour
     private bool mustAutoRun = false;
     private bool areMoveKeyReleasedWhileAutoRun = false;
     private bool inWater = false;
+    private bool isJumping = false;
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
 
@@ -232,7 +233,7 @@ public class ThirdPersonController : MonoBehaviour
 
         if (wasGrounded != isGrounded)
         {
-            if (wasGrounded) 
+            if (wasGrounded && !isJumping) 
             { 
                 characterPositionBeforeFall = transform.position;
                 // Cancel snap to ground velocity;
@@ -240,6 +241,7 @@ public class ThirdPersonController : MonoBehaviour
             }
             else
             {
+                isJumping = false;
                 float distance = Mathf.Abs(transform.position.y - characterPositionBeforeFall.y);
                 animator.SetBool(animIDHardLand, distance > minDistanceForHardLanding);
             }
@@ -257,12 +259,13 @@ public class ThirdPersonController : MonoBehaviour
         {
             // Formula came from https://docs.unity3d.com/ScriptReference/CharacterController.Move.html
             velocity.y = Mathf.Sqrt(JumpHeight * -2.0f * gravity);
-
+            
             if (animator)
             {
                 animator.SetTrigger(animIDJump);
             }
             jumpInput = false;
+            isJumping = true;
         }
     }
 
@@ -277,9 +280,9 @@ public class ThirdPersonController : MonoBehaviour
                 velocity.y = maxFallVelocity;
             }
         }
-        else
+        else if (!isJumping)
         {
-            velocity.y = snapToGround ? (-characterController.stepOffset / Time.deltaTime) : 0f;
+            velocity.y = (snapToGround && !jumpInput) ? (-characterController.stepOffset / Time.deltaTime) : 0f;
         }
     }
 
