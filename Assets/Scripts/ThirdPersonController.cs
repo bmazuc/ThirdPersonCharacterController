@@ -46,10 +46,16 @@ public class ThirdPersonController : MonoBehaviour
 
     [Header("GroundDetection")]
     [Tooltip("Useful for rough ground")]
-    public float groundCheckOffset = -0.14f;
+    public float groundCheckOffset = 0.14f;
 
     [Tooltip("What layers the character uses as ground")]
     public LayerMask groundLayers;
+
+    [Header("Swim")]
+    public float waterDetectionOffset = 0.0f;
+    public float waterDetectionRadius = 0.01f;
+    public float swimColliderRadius = 0.84f;
+    public LayerMask waterLayers;
 
     [Header("Animator")]
     public Animator animator;
@@ -57,12 +63,13 @@ public class ThirdPersonController : MonoBehaviour
     public string jumpTriggerParameterName = "Jump";
     public string groundedParameterName = "Grounded";
     public string hardLandParameterName = "isHardLanding";
+    public string isInWaterParameterName = "isInWater";
 
     private bool isRunning = false;
     private bool isGrounded = false;
     private bool mustAutoRun = false;
     private bool areMoveKeyReleasedWhileAutoRun = false;
-
+    private bool inWater = false;
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
 
@@ -76,10 +83,12 @@ public class ThirdPersonController : MonoBehaviour
     private int animIDJump;
     private int animIDGrounded;
     private int animIDHardLand;
+    private int animIDIsInWater;
 
     private CharacterController characterController;
     private GameObject mainCamera;
     private bool canMove = true;
+    private float baseColliderRadius;
 
     private void Awake()
     {
@@ -94,6 +103,8 @@ public class ThirdPersonController : MonoBehaviour
     {
         characterController = GetComponent<CharacterController>();
 
+        baseColliderRadius = characterController.radius;
+
         groundedSphereRadius = characterController.radius;
 
         AssignAnimationIDs();
@@ -102,9 +113,13 @@ public class ThirdPersonController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        CheckIfInWater();
         CheckIfGrounded();
-        ApplyGravity();
-        Jump();
+        if (!inWater)
+        {
+            ApplyGravity();
+            Jump();
+        }
         Move();
     }
 
@@ -186,6 +201,24 @@ public class ThirdPersonController : MonoBehaviour
         return 0.0f;
     }
 
+    private void CheckIfInWater()
+    {
+        Vector3 spherePosition = transform.position + characterController.center;
+        spherePosition.y += waterDetectionOffset;
+        inWater = Physics.CheckSphere(spherePosition, waterDetectionRadius, waterLayers);
+        if (inWater)
+        {
+            velocity.y = 0;
+        }
+
+        characterController.radius = inWater ? swimColliderRadius : baseColliderRadius;
+
+        if (animator)
+        {
+            animator.SetBool(animIDIsInWater, inWater);
+        }
+    }
+
     // Use a custom ground check instead of charactercontroller isGrounded as the built-in value
     // doen't seems to be reliable
     private void CheckIfGrounded()
@@ -193,10 +226,10 @@ public class ThirdPersonController : MonoBehaviour
         bool wasGrounded = isGrounded;
 
         Vector3 spherePosition = transform.position;
-        spherePosition.y -= groundCheckOffset;
+        spherePosition.y += groundCheckOffset;
 
         isGrounded = Physics.CheckSphere(spherePosition, groundedSphereRadius, groundLayers, QueryTriggerInteraction.Ignore);
-        
+
         if (wasGrounded != isGrounded)
         {
             if (wasGrounded) 
@@ -244,7 +277,7 @@ public class ThirdPersonController : MonoBehaviour
                 velocity.y = maxFallVelocity;
             }
         }
-        else// if (velocity.y < 0)
+        else
         {
             velocity.y = snapToGround ? (-characterController.stepOffset / Time.deltaTime) : 0f;
         }
@@ -256,6 +289,7 @@ public class ThirdPersonController : MonoBehaviour
         animIDJump = Animator.StringToHash(jumpTriggerParameterName);
         animIDGrounded = Animator.StringToHash(groundedParameterName);
         animIDHardLand = Animator.StringToHash(hardLandParameterName);
+        animIDIsInWater = Animator.StringToHash(isInWaterParameterName);
     }
 
     public void EnableMovement(bool enabled)
@@ -288,7 +322,7 @@ public class ThirdPersonController : MonoBehaviour
 
     public void OnJumpInput(InputAction.CallbackContext context)
     {
-        if (context.started)
+        if (context.started && isGrounded && !inWater)
         {
             jumpInput = true;
         }
