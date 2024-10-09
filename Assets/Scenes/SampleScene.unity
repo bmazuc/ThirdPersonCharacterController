@@ -5425,7 +5425,7 @@ GameObject:
   - component: {fileID: 1180558573}
   - component: {fileID: 1180558572}
   - component: {fileID: 1180558571}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5859,7 +5859,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1607576629}
   m_Layer: 0
-  m_Name: Enviro
+  m_Name: Environment
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10960,23 +10960,31 @@ MonoBehaviour:
   gravity: -9.81
   maxFallVelocity: 50
   minDistanceForHardLanding: 3
-  groundCheckOffset: 0
-  groundLayers:
-    serializedVersion: 2
-    m_Bits: 64
-  waterDetectionOffset: 0.4
-  waterDetectionRadius: 0.01
+  groundDetectionSphere:
+    detectionOffset: 0
+    detectionRadius: 0.28
+    layers:
+      serializedVersion: 2
+      m_Bits: 64
+    draw: 0
+    drawColor: {r: 0, g: 1, b: 0, a: 1}
+  waterDetectionSphere:
+    detectionOffset: 0.9
+    detectionRadius: 0.01
+    layers:
+      serializedVersion: 2
+      m_Bits: 16
+    draw: 1
+    drawColor: {r: 0, g: 1, b: 1, a: 1}
+  swimSpeed: 2
   swimColliderRadius: 0.84
-  waterLayers:
-    serializedVersion: 2
-    m_Bits: 16
-  animator: {fileID: 3166231814297668477}
-  moveSpeedParameterName: MoveSpeed
-  jumpTriggerParameterName: Jump
-  groundedParameterName: Grounded
-  hardLandParameterName: isHardLanding
-  isInWaterParameterName: isInWater
-  velocity: {x: 0, y: 0, z: 0}
+  animationData:
+    animator: {fileID: 3166231814297668477}
+    moveSpeedParameterName: MoveSpeed
+    jumpTriggerParameterName: Jump
+    groundedParameterName: Grounded
+    hardLandParameterName: isHardLanding
+    isInWaterParameterName: isInWater
 --- !u!4 &7727945351110079767
 Transform:
   m_ObjectHideFlags: 0

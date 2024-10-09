@@ -1,11 +1,20 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.Windows;
 
+public enum MovementState
+{
+    Grounded,
+    Airborne,
+    InWater
+}
+
+// [Improvement suggestion] : Use a state machine instead of enum for managing movement state
 [RequireComponent(typeof(CharacterController))]
 public class ThirdPersonController : MonoBehaviour
 {
@@ -45,29 +54,20 @@ public class ThirdPersonController : MonoBehaviour
     public float minDistanceForHardLanding = 3.0f;
     private Vector3 characterPositionBeforeFall;
 
-    [Header("GroundDetection")]
-    [Tooltip("Useful for rough ground")]
-    public float groundCheckOffset = 0.14f;
-    [Tooltip("What layers the character uses as ground")]
-    public LayerMask groundLayers;
+    [Header("EnvironmentDetection")]
+    public LayerDetectionSphere groundDetectionSphere = new LayerDetectionSphere(0.0f, 0.28f);
+    public LayerDetectionSphere waterDetectionSphere = new LayerDetectionSphere(0.1f, 0.01f);
 
     [Header("Swim")]
     public float swimSpeed = 2.0f;
     public float swimColliderRadius = 0.84f;
 
-    [Header("WaterDetection")]
-    public float waterDetectionOffset = 0.0f;
-    public float waterDetectionRadius = 0.01f;
-    public LayerMask waterLayers;
-
     [Header("Animation")]
     public PlayerAnimationData animationData;
 
     private bool isRunning = false;
-    private bool isGrounded = false;
     private bool mustAutoRun = false;
     private bool areMoveKeyReleasedWhileAutoRun = false;
-    private bool inWater = false;
     private bool isJumping = false;
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
@@ -75,16 +75,17 @@ public class ThirdPersonController : MonoBehaviour
     private float targetRotation = 0.0f;
     private float rotationVelocity;
     private Vector3 velocity;
-    private float groundedSphereRadius; 
 
     private CharacterController characterController;
     private GameObject mainCamera;
     private bool canMove = true;
     private float baseColliderRadius;
 
+    private MovementState currentState = MovementState.Grounded;
+
     private void Awake()
     {
-        if (mainCamera == null)
+        if (!mainCamera)
         {
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
         }
@@ -94,35 +95,34 @@ public class ThirdPersonController : MonoBehaviour
     void Start()
     {
         characterController = GetComponent<CharacterController>();
-
-        baseColliderRadius = characterController.radius;
-
-        groundedSphereRadius = characterController.radius;
-
         animationData.AssignAnimationIDs();
     }
 
     // Update is called once per frame
     void Update()
     {
-        CheckIfInWater();
-        CheckIfGrounded();
-        if (!inWater)
+        // Detect environment
+        if (!CheckIfInWater())
         {
-            ApplyGravity();
-            Jump();
+            CheckIfGrounded();
         }
+
+        ApplyGravity();
+        Jump();
         Move();
+
+        // Apply velocity
+        characterController.Move(velocity * Time.deltaTime);
     }
 
     private void Move()
     {
-        if (isGrounded || inWater)
+        Vector3 inputDirection = GetInputDirection();
+
+        float speed = ComputeSpeed(inputDirection);
+
+        if (currentState != MovementState.Airborne)
         {
-            Vector3 inputDirection = GetInputDirection();
-
-            float speed = ComputeSpeed(inputDirection);
-
             if (inputDirection.sqrMagnitude > 0.0f)
             {
                 // Make the character rotate toward the input relatively to the camera
@@ -139,11 +139,8 @@ public class ThirdPersonController : MonoBehaviour
 
             Vector3 moveVelocity = targetDirection.normalized * speed;
             velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
-
-            animationData.SetFloat(animationData.animIDMoveSpeed, speed);
         }
-
-        characterController.Move(velocity * Time.deltaTime);
+        animationData.SetFloat(animationData.animIDMoveSpeed, speed); 
     }
 
     private Vector3 GetInputDirection()
@@ -193,57 +190,86 @@ public class ThirdPersonController : MonoBehaviour
         return 0.0f;
     }
 
-    private void CheckIfInWater()
+    private bool CheckIfInWater()
     {
-        Vector3 spherePosition = transform.position + characterController.center;
-        spherePosition.y += waterDetectionOffset;
-        inWater = Physics.CheckSphere(spherePosition, waterDetectionRadius, waterLayers);
-        if (inWater)
+        bool detectWater = waterDetectionSphere.CheckSphere(transform.position);
+
+        switch (currentState)
         {
-            velocity.y = 0;
+            case MovementState.Grounded:
+            case MovementState.Airborne:
+                {
+                    if (detectWater)
+                    {
+                        currentState = MovementState.InWater;
+                        baseColliderRadius = characterController.radius;
+                        characterController.radius = swimColliderRadius;
+                    }
+                } break;
+
+            case MovementState.InWater:
+                {
+                    if (!detectWater)
+                    {
+                        characterController.radius = baseColliderRadius;
+                    }
+                } break;
+
+            default: break;
         }
 
-        characterController.radius = inWater ? swimColliderRadius : baseColliderRadius;
+        animationData.SetBool(animationData.animIDIsInWater, currentState == MovementState.InWater);
 
-        animationData.SetBool(animationData.animIDIsInWater, inWater);
+        return detectWater;
     }
 
     // Use a custom ground check instead of charactercontroller isGrounded as the built-in value
     // doen't seems to be reliable
     private void CheckIfGrounded()
     {
-        bool wasGrounded = isGrounded;
+        bool detectGround = groundDetectionSphere.CheckSphere(transform.position);
 
-        Vector3 spherePosition = transform.position;
-        spherePosition.y += groundCheckOffset;
-
-        isGrounded = Physics.CheckSphere(spherePosition, groundedSphereRadius, groundLayers, QueryTriggerInteraction.Ignore);
-
-        if (wasGrounded != isGrounded)
+        switch (currentState)
         {
-            if (wasGrounded) 
-            { 
-                characterPositionBeforeFall = transform.position;
-                if (!isJumping)
+            case MovementState.Grounded:
                 {
-                    // Cancel snap to ground velocity;
-                    velocity.y = 0.0f;
-                }
-            }
-            else
-            {
-                isJumping = false;
-                float distance = Mathf.Abs(transform.position.y - characterPositionBeforeFall.y);
-                animationData.SetBool(animationData.animIDHardLand, distance > minDistanceForHardLanding);
-            }
+                    if (!detectGround)
+                    {
+                        characterPositionBeforeFall = transform.position;
+                        if (!isJumping)
+                        {
+                            // Cancel snap to ground velocity;
+                            velocity.y = 0.0f;
+                        }
+                        currentState = MovementState.Airborne;
+                    }
+                } break;
+
+            case MovementState.Airborne:
+                {
+                    if (detectGround)
+                    {
+                        isJumping = false;
+                        float distance = Mathf.Abs(transform.position.y - characterPositionBeforeFall.y);
+                        animationData.SetBool(animationData.animIDHardLand, distance > minDistanceForHardLanding);
+                        currentState = MovementState.Grounded;
+                    }
+                } break;
+
+            case MovementState.InWater:
+                {
+                    currentState = detectGround ? MovementState.Grounded : MovementState.Airborne;
+                } break;
+
+            default: break;
         }
 
-        animationData.SetBool(animationData.animIDGrounded, isGrounded);
+        animationData.SetBool(animationData.animIDGrounded, detectGround);
     }
 
     private void Jump()
     {
-        if (jumpInput && isGrounded)
+        if (jumpInput && (currentState == MovementState.Grounded))
         {
             // Formula came from https://docs.unity3d.com/ScriptReference/CharacterController.Move.html
             velocity.y = Mathf.Sqrt(JumpHeight * -2.0f * gravity);
@@ -257,18 +283,27 @@ public class ThirdPersonController : MonoBehaviour
 
     private void ApplyGravity()
     {
-        if (!isGrounded)
+        switch (currentState)
         {
-            velocity.y += gravity * Time.deltaTime;
+            case MovementState.Airborne:
+                {
+                    velocity.y += gravity * Time.deltaTime;
 
-            if (maxFallVelocity > 0.0f && velocity.y > maxFallVelocity)
-            {
-                velocity.y = maxFallVelocity;
-            }
-        }
-        else if (!isJumping)
-        {
-            velocity.y = (snapToGround && !jumpInput) ? (-characterController.stepOffset / Time.deltaTime) : 0f;
+                    if (maxFallVelocity > 0.0f && velocity.y > maxFallVelocity)
+                    {
+                        velocity.y = maxFallVelocity;
+                    }
+                } break;
+
+            case MovementState.Grounded:
+                {
+                    if (!isJumping)
+                    {
+                        velocity.y = (snapToGround && !jumpInput) ? (-characterController.stepOffset / Time.deltaTime) : 0f;
+                    }
+                } break;
+
+            default: { velocity.y = 0.0f; } break;
         }
     }
 
@@ -302,7 +337,7 @@ public class ThirdPersonController : MonoBehaviour
 
     public void OnJumpInput(InputAction.CallbackContext context)
     {
-        if (context.started && isGrounded && !inWater)
+        if (context.started && (currentState == MovementState.Grounded))
         {
             jumpInput = true;
         }
@@ -330,5 +365,11 @@ public class ThirdPersonController : MonoBehaviour
                 moveInput.Set(0.0f, 0.0f);
             }
         }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        groundDetectionSphere.Draw(transform.position);
+        waterDetectionSphere.Draw(transform.position);
     }
 }
