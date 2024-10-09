@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -47,23 +48,20 @@ public class ThirdPersonController : MonoBehaviour
     [Header("GroundDetection")]
     [Tooltip("Useful for rough ground")]
     public float groundCheckOffset = 0.14f;
-
     [Tooltip("What layers the character uses as ground")]
     public LayerMask groundLayers;
 
     [Header("Swim")]
+    public float swimSpeed = 2.0f;
+    public float swimColliderRadius = 0.84f;
+
+    [Header("WaterDetection")]
     public float waterDetectionOffset = 0.0f;
     public float waterDetectionRadius = 0.01f;
-    public float swimColliderRadius = 0.84f;
     public LayerMask waterLayers;
 
-    [Header("Animator")]
-    public Animator animator;
-    public string moveSpeedParameterName = "MoveSpeed";
-    public string jumpTriggerParameterName = "Jump";
-    public string groundedParameterName = "Grounded";
-    public string hardLandParameterName = "isHardLanding";
-    public string isInWaterParameterName = "isInWater";
+    [Header("Animation")]
+    public PlayerAnimationData animationData;
 
     private bool isRunning = false;
     private bool isGrounded = false;
@@ -76,15 +74,8 @@ public class ThirdPersonController : MonoBehaviour
 
     private float targetRotation = 0.0f;
     private float rotationVelocity;
-    public Vector3 velocity;
-    private float groundedSphereRadius;
-
-    // animation IDs
-    private int animIDMoveSpeed;
-    private int animIDJump;
-    private int animIDGrounded;
-    private int animIDHardLand;
-    private int animIDIsInWater;
+    private Vector3 velocity;
+    private float groundedSphereRadius; 
 
     private CharacterController characterController;
     private GameObject mainCamera;
@@ -108,7 +99,7 @@ public class ThirdPersonController : MonoBehaviour
 
         groundedSphereRadius = characterController.radius;
 
-        AssignAnimationIDs();
+        animationData.AssignAnimationIDs();
     }
 
     // Update is called once per frame
@@ -126,33 +117,33 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Move()
     {
-        Vector3 inputDirection = GetInputDirection();
-
-        float speed = ComputeSpeed(inputDirection);
-        
-        if (inputDirection.sqrMagnitude > 0.0f)
+        if (isGrounded || inWater)
         {
-            // Make the character rotate toward the input relatively to the camera
-            targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
-            if (!mustAutoRun)
+            Vector3 inputDirection = GetInputDirection();
+
+            float speed = ComputeSpeed(inputDirection);
+
+            if (inputDirection.sqrMagnitude > 0.0f)
             {
-                targetRotation += mainCamera.transform.eulerAngles.y;
+                // Make the character rotate toward the input relatively to the camera
+                targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+                if (!mustAutoRun)
+                {
+                    targetRotation += mainCamera.transform.eulerAngles.y;
+                }
+                float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
+                transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
             }
-            float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
-            transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
+
+            Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+
+            Vector3 moveVelocity = targetDirection.normalized * speed;
+            velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
+
+            animationData.SetFloat(animationData.animIDMoveSpeed, speed);
         }
-
-        Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
-
-        Vector3 moveVelocity = targetDirection.normalized * speed;
-        velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
 
         characterController.Move(velocity * Time.deltaTime);
-
-        if (animator)
-        {
-            animator.SetFloat(animIDMoveSpeed, speed);
-        }
     }
 
     private Vector3 GetInputDirection()
@@ -214,10 +205,7 @@ public class ThirdPersonController : MonoBehaviour
 
         characterController.radius = inWater ? swimColliderRadius : baseColliderRadius;
 
-        if (animator)
-        {
-            animator.SetBool(animIDIsInWater, inWater);
-        }
+        animationData.SetBool(animationData.animIDIsInWater, inWater);
     }
 
     // Use a custom ground check instead of charactercontroller isGrounded as the built-in value
@@ -233,24 +221,24 @@ public class ThirdPersonController : MonoBehaviour
 
         if (wasGrounded != isGrounded)
         {
-            if (wasGrounded && !isJumping) 
+            if (wasGrounded) 
             { 
                 characterPositionBeforeFall = transform.position;
-                // Cancel snap to ground velocity;
-                velocity.y = 0.0f;
+                if (!isJumping)
+                {
+                    // Cancel snap to ground velocity;
+                    velocity.y = 0.0f;
+                }
             }
             else
             {
                 isJumping = false;
                 float distance = Mathf.Abs(transform.position.y - characterPositionBeforeFall.y);
-                animator.SetBool(animIDHardLand, distance > minDistanceForHardLanding);
+                animationData.SetBool(animationData.animIDHardLand, distance > minDistanceForHardLanding);
             }
         }
 
-        if (animator)
-        {
-            animator.SetBool(animIDGrounded, isGrounded);
-        }
+        animationData.SetBool(animationData.animIDGrounded, isGrounded);
     }
 
     private void Jump()
@@ -260,10 +248,8 @@ public class ThirdPersonController : MonoBehaviour
             // Formula came from https://docs.unity3d.com/ScriptReference/CharacterController.Move.html
             velocity.y = Mathf.Sqrt(JumpHeight * -2.0f * gravity);
             
-            if (animator)
-            {
-                animator.SetTrigger(animIDJump);
-            }
+            animationData.SetTrigger(animationData.animIDJump);
+
             jumpInput = false;
             isJumping = true;
         }
@@ -284,15 +270,6 @@ public class ThirdPersonController : MonoBehaviour
         {
             velocity.y = (snapToGround && !jumpInput) ? (-characterController.stepOffset / Time.deltaTime) : 0f;
         }
-    }
-
-    private void AssignAnimationIDs()
-    {
-        animIDMoveSpeed = Animator.StringToHash(moveSpeedParameterName);
-        animIDJump = Animator.StringToHash(jumpTriggerParameterName);
-        animIDGrounded = Animator.StringToHash(groundedParameterName);
-        animIDHardLand = Animator.StringToHash(hardLandParameterName);
-        animIDIsInWater = Animator.StringToHash(isInWaterParameterName);
     }
 
     public void EnableMovement(bool enabled)
