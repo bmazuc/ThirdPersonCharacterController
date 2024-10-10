@@ -7,46 +7,48 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.Windows;
 
-public enum MovementState
+public enum MovementMode
 {
-    Grounded,
-    Airborne,
-    InWater
+    Move_None,
+    Move_Running,
+    Move_Falling,
+    Move_Swimming
 }
 
-// [Improvement suggestion] : Use a state machine instead of enum for managing movement state
 [RequireComponent(typeof(CharacterController))]
 public class ThirdPersonController : MonoBehaviour
 {
-    [Header("Movement")]
-    [Tooltip("Walk speed of the character")]
-    public float walkSpeed = 2.0f;
-
-    [Tooltip("Run speed of the character")]
-    public float runSpeed = 6.0f;
+    [Header("General")]
+    public MovementMode defaultMovementMode = MovementMode.Move_Running;
+    private MovementMode currentMovementMode;
 
     [Tooltip("How fast the character turns to face movement direction")]
     [Min(0.0f)]
     public float rotationSmoothTime = 0.12f;
+    [Tooltip("Offset for max speed reaching")]
+    public float maxSpeedOffset = 0.1f;
 
+    [Header("Running")]
+    [Tooltip("Run speed of the character")]
+    public float maxRunSpeed = 6.0f;
+
+    [Tooltip("Walk speed of the character. Used on pc for toggling run/walk")]
+    public float walkSpeed = 2.0f;
+    [Tooltip("Used on pc for toggling run/walk. Should we hold the key ?")]
     public bool shouldHoldRunKey = false;
+
     [Tooltip("Should the character snap to the ground ? Useful for walking down stairs for example. " +
         "\nSnapping is linked to step value from character controller.")]
     public bool snapToGround = true;
 
     [Tooltip("How many time need to reach the target speed if speed under it")]
-    public float accelerationTime = 0.1f;
+    public float walkAccelerationTime = 0.1f;
     [Tooltip("How many time need to reach the target speed if speed over it")]
-    public float deccelerationTime = 0.1f;
-    public float speedOffset = 0.1f;
+    public float walkDeccelerationTime = 0.1f;
 
-    private float speedVelocity;
-
-    [Header("Jump")]
+    [Header("Jumping/Falling")]
     [Tooltip("The height the player can jump")]
     public float JumpHeight = 1.2f;
-
-    [Header("Gravity")]
     [Tooltip("The character uses its own gravity value. The engine default is -9.81f")]
     public float gravity = -9.81f;
     [Tooltip("The maximum negative velocity we can reach. Set it to 0.0f to ignore it.")]
@@ -59,11 +61,18 @@ public class ThirdPersonController : MonoBehaviour
     public LayerDetectionSphere waterDetectionSphere = new LayerDetectionSphere(0.1f, 0.01f);
 
     [Header("Swim")]
-    public float swimSpeed = 2.0f;
+    public float maxSwimSpeed = 2.0f;
+    [Tooltip("How many time need to reach the target speed if speed under it")]
+    public float swimAccelerationTime = 0.1f;
+    [Tooltip("How many time need to reach the target speed if speed over it")]
+    public float swimDeccelerationTime = 0.1f;
     public float swimColliderRadius = 0.84f;
 
     [Header("Animation")]
     public PlayerAnimationData animationData;
+
+    [Header("Input")]
+    public string gamepadScheme = "Gamepad";
 
     private bool isRunning = false;
     private bool mustAutoRun = false;
@@ -73,7 +82,7 @@ public class ThirdPersonController : MonoBehaviour
     private bool jumpInput = false;
 
     private float targetRotation = 0.0f;
-    private float rotationVelocity;
+
     private Vector3 velocity;
 
     private CharacterController characterController;
@@ -81,7 +90,11 @@ public class ThirdPersonController : MonoBehaviour
     private bool canMove = true;
     private float baseColliderRadius;
 
-    private MovementState currentState = MovementState.Grounded;
+    // Smooth damp velocities
+    private float speedVelocity;
+    private float rotationVelocity;
+
+    public bool useGamepad = false;
 
     private void Awake()
     {
@@ -94,8 +107,16 @@ public class ThirdPersonController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        currentMovementMode = defaultMovementMode;
+
         characterController = GetComponent<CharacterController>();
         animationData.AssignAnimationIDs();
+
+        PlayerInput playerInput = GetComponent<PlayerInput>();
+        if (playerInput)
+        {
+            useGamepad = (playerInput.currentControlScheme == gamepadScheme);
+        }
     }
 
     // Update is called once per frame
@@ -121,7 +142,7 @@ public class ThirdPersonController : MonoBehaviour
 
         float speed = ComputeSpeed(inputDirection);
 
-        if (currentState != MovementState.Airborne)
+        if (currentMovementMode != MovementMode.Move_Falling)
         {
             if (inputDirection.sqrMagnitude > 0.0f)
             {
@@ -131,15 +152,17 @@ public class ThirdPersonController : MonoBehaviour
                 {
                     targetRotation += mainCamera.transform.eulerAngles.y;
                 }
+
                 float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
                 transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
             }
-
+        
             Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
 
             Vector3 moveVelocity = targetDirection.normalized * speed;
             velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
         }
+
         animationData.SetFloat(animationData.animIDMoveSpeed, speed); 
     }
 
@@ -147,7 +170,7 @@ public class ThirdPersonController : MonoBehaviour
     {
         if (mustAutoRun)
         {
-            return new Vector3(transform.forward.x, 0.0f, transform.forward.z).normalized;
+            return new Vector3(transform.forward.x, 0.0f, transform.forward.z);
         }
 
         if (!canMove)
@@ -155,59 +178,94 @@ public class ThirdPersonController : MonoBehaviour
             return Vector3.zero;
         }
 
-        return new Vector3(moveInput.x, 0.0f, moveInput.y).normalized;
+        return new Vector3(moveInput.x, 0.0f, moveInput.y);
     }
 
     private float ComputeSpeed(Vector3 inputDirection)
     {
+        float targetSpeed = 0.0f;
         if (canMove)
         {
-            float targetSpeed = isRunning ? runSpeed : walkSpeed;
+            switch (currentMovementMode)
+            {
+                case MovementMode.Move_Running:
+                    {
+                        targetSpeed = (isRunning || useGamepad) ? maxRunSpeed : walkSpeed;
+                    }
+                    break;
+
+                case MovementMode.Move_Swimming:
+                    {
+                        targetSpeed = maxSwimSpeed;
+                    } 
+                    break;
+
+                default: break;
+            }
 
             if (inputDirection.sqrMagnitude == 0.0f)
             {
                 targetSpeed = 0.0f;
             }
 
+            targetSpeed *= inputDirection.sqrMagnitude;
+
             float currentHorizontalSpeed = new Vector3(velocity.x, 0.0f, velocity.z).magnitude;
 
-            bool mustAccelerate = currentHorizontalSpeed < targetSpeed - speedOffset;
-            bool mustDeccelerate = currentHorizontalSpeed > targetSpeed + speedOffset;
+            bool mustAccelerate = currentHorizontalSpeed < targetSpeed - maxSpeedOffset;
+            bool mustDeccelerate = currentHorizontalSpeed > targetSpeed + maxSpeedOffset;
 
             if (mustAccelerate || mustDeccelerate) 
             {
-                float speedChangeTime = mustAccelerate ? accelerationTime : deccelerationTime;
+                float speedChangeTime = GetSpeedChangeTime(mustAccelerate);
 
                 float speed = Mathf.SmoothDamp(currentHorizontalSpeed, targetSpeed * inputDirection.magnitude, ref speedVelocity,
                     speedChangeTime);
 
                 return speed;
             }
-
-            return targetSpeed;
         }
 
-        return 0.0f;
+        return targetSpeed;
+    }
+
+    private float GetSpeedChangeTime(bool mustAccelerate)
+    {
+        switch (currentMovementMode)
+        {
+            case MovementMode.Move_Running:
+                {
+                    return mustAccelerate ? walkAccelerationTime : walkDeccelerationTime;
+                }
+
+
+            case MovementMode.Move_Swimming:
+                {
+                    return mustAccelerate ? swimAccelerationTime : swimDeccelerationTime;
+                }
+
+            default: return 0.0f;
+        }
     }
 
     private bool CheckIfInWater()
     {
         bool detectWater = waterDetectionSphere.CheckSphere(transform.position);
 
-        switch (currentState)
+        switch (currentMovementMode)
         {
-            case MovementState.Grounded:
-            case MovementState.Airborne:
+            case MovementMode.Move_Running:
+            case MovementMode.Move_Falling:
                 {
                     if (detectWater)
                     {
-                        currentState = MovementState.InWater;
+                        currentMovementMode = MovementMode.Move_Swimming;
                         baseColliderRadius = characterController.radius;
                         characterController.radius = swimColliderRadius;
                     }
                 } break;
 
-            case MovementState.InWater:
+            case MovementMode.Move_Swimming:
                 {
                     if (!detectWater)
                     {
@@ -218,7 +276,7 @@ public class ThirdPersonController : MonoBehaviour
             default: break;
         }
 
-        animationData.SetBool(animationData.animIDIsInWater, currentState == MovementState.InWater);
+        animationData.SetBool(animationData.animIDIsSwimming, currentMovementMode == MovementMode.Move_Swimming);
 
         return detectWater;
     }
@@ -229,9 +287,9 @@ public class ThirdPersonController : MonoBehaviour
     {
         bool detectGround = groundDetectionSphere.CheckSphere(transform.position);
 
-        switch (currentState)
+        switch (currentMovementMode)
         {
-            case MovementState.Grounded:
+            case MovementMode.Move_Running:
                 {
                     if (!detectGround)
                     {
@@ -241,35 +299,35 @@ public class ThirdPersonController : MonoBehaviour
                             // Cancel snap to ground velocity;
                             velocity.y = 0.0f;
                         }
-                        currentState = MovementState.Airborne;
+                        currentMovementMode = MovementMode.Move_Falling;
                     }
                 } break;
 
-            case MovementState.Airborne:
+            case MovementMode.Move_Falling:
                 {
                     if (detectGround)
                     {
                         isJumping = false;
                         float distance = Mathf.Abs(transform.position.y - characterPositionBeforeFall.y);
                         animationData.SetBool(animationData.animIDHardLand, distance > minDistanceForHardLanding);
-                        currentState = MovementState.Grounded;
+                        currentMovementMode = MovementMode.Move_Running;
                     }
                 } break;
 
-            case MovementState.InWater:
+            case MovementMode.Move_Swimming:
                 {
-                    currentState = detectGround ? MovementState.Grounded : MovementState.Airborne;
+                    currentMovementMode = detectGround ? MovementMode.Move_Running : MovementMode.Move_Falling;
                 } break;
 
             default: break;
         }
 
-        animationData.SetBool(animationData.animIDGrounded, detectGround);
+        animationData.SetBool(animationData.animIDIsFalling, !detectGround);
     }
 
     private void Jump()
     {
-        if (jumpInput && (currentState == MovementState.Grounded))
+        if (jumpInput && (currentMovementMode == MovementMode.Move_Running))
         {
             // Formula came from https://docs.unity3d.com/ScriptReference/CharacterController.Move.html
             velocity.y = Mathf.Sqrt(JumpHeight * -2.0f * gravity);
@@ -283,9 +341,9 @@ public class ThirdPersonController : MonoBehaviour
 
     private void ApplyGravity()
     {
-        switch (currentState)
+        switch (currentMovementMode)
         {
-            case MovementState.Airborne:
+            case MovementMode.Move_Falling:
                 {
                     velocity.y += gravity * Time.deltaTime;
 
@@ -295,7 +353,7 @@ public class ThirdPersonController : MonoBehaviour
                     }
                 } break;
 
-            case MovementState.Grounded:
+            case MovementMode.Move_Running:
                 {
                     if (!isJumping)
                     {
@@ -337,7 +395,7 @@ public class ThirdPersonController : MonoBehaviour
 
     public void OnJumpInput(InputAction.CallbackContext context)
     {
-        if (context.started && (currentState == MovementState.Grounded))
+        if (context.started && (currentMovementMode == MovementMode.Move_Running))
         {
             jumpInput = true;
         }
@@ -365,6 +423,11 @@ public class ThirdPersonController : MonoBehaviour
                 moveInput.Set(0.0f, 0.0f);
             }
         }
+    }
+
+    public void OnControlsChanged(PlayerInput playerInput)
+    {
+        useGamepad = (playerInput.currentControlScheme == gamepadScheme);
     }
 
     private void OnDrawGizmosSelected()

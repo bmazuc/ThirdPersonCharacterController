@@ -10,24 +10,24 @@ public class PlayerAnimationData
 
     public string moveSpeedParameterName = "MoveSpeed";
     public string jumpTriggerParameterName = "Jump";
-    public string groundedParameterName = "Grounded";
-    public string hardLandParameterName = "isHardLanding";
-    public string isInWaterParameterName = "isInWater";
+    public string isFallingParameterName = "IsFalling";
+    public string hardLandTriggerParameterName = "HardLand";
+    public string isSwimmingParameterName = "isSwimming";
 
     // animation IDs
     public int animIDMoveSpeed { get; private set; }
     public int animIDJump { get; private set; }
-    public int animIDGrounded { get; private set; }
+    public int animIDIsFalling { get; private set; }
     public int animIDHardLand { get; private set; }
-    public int animIDIsInWater { get; private set; }
+    public int animIDIsSwimming { get; private set; }
 
     public void AssignAnimationIDs()
     {
         animIDMoveSpeed = Animator.StringToHash(moveSpeedParameterName);
         animIDJump = Animator.StringToHash(jumpTriggerParameterName);
-        animIDGrounded = Animator.StringToHash(groundedParameterName);
-        animIDHardLand = Animator.StringToHash(hardLandParameterName);
-        animIDIsInWater = Animator.StringToHash(isInWaterParameterName);
+        animIDIsFalling = Animator.StringToHash(isFallingParameterName);
+        animIDHardLand = Animator.StringToHash(hardLandTriggerParameterName);
+        animIDIsSwimming = Animator.StringToHash(isSwimmingParameterName);
     }
 
     public void SetFloat(int id, float value)
