@@ -6054,13 +6054,25 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 467538722337671749, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: ladderLayerMask.m_Bits
+      value: 128
+      objectReference: {fileID: 0}
+    - target: {fileID: 467538722337671749, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: groundDetectionSphere.draw
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_DefaultControlScheme
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.size
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.size
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
@@ -6087,12 +6099,24 @@ PrefabInstance:
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
       value: OnControlsChanged
       objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.data[1].m_MethodName
       value: OnControlsChanged
+      objectReference: {fileID: 0}
+    - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 7686489529197724187}
+    - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: t
       objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
@@ -6103,6 +6127,10 @@ PrefabInstance:
       value: ThirdPersonController, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: ThirdPersonController, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
@@ -6110,6 +6138,14 @@ PrefabInstance:
       propertyPath: m_ControlsChangedEvent.m_PersistentCalls.m_Calls.Array.data[1].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
+    - target: {fileID: 586810057961698372, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 956073626917596705, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 7bc147b6c82ce984a9baf53e9ebe57d6, type: 2}
     - target: {fileID: 2562612660706436171, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -6245,6 +6281,14 @@ PrefabInstance:
     - target: {fileID: 5607786857706011488, guid: 81d4981011828914088d1d0af65fc4ac, type: 3}
       propertyPath: m_Name
       value: PlayerCamera
+      objectReference: {fileID: 0}
+    - target: {fileID: 8444748639246094169, guid: 81d4981011828914088d1d0af65fc4ac, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8444748639246094169, guid: 81d4981011828914088d1d0af65fc4ac, type: 3}
+      propertyPath: AutoEnableInputs
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

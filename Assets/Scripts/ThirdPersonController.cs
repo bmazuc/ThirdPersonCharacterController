@@ -12,7 +12,7 @@ public enum MovementMode
     Move_None,
     Move_Running,
     Move_Falling,
-    Move_Swimming
+    Move_Swimming,
 }
 
 [RequireComponent(typeof(CharacterController))]
@@ -20,7 +20,7 @@ public class ThirdPersonController : MonoBehaviour
 {
     [Header("General")]
     public MovementMode defaultMovementMode = MovementMode.Move_Running;
-    private MovementMode currentMovementMode;
+    public MovementMode currentMovementMode;
 
     [Tooltip("How fast the character turns to face movement direction")]
     [Min(0.0f)]
@@ -138,11 +138,16 @@ public class ThirdPersonController : MonoBehaviour
 
     private void Move()
     {
+        if (currentMovementMode == MovementMode.Move_Falling || currentMovementMode == MovementMode.Move_None)
+        {    
+            return;
+        }
+
         Vector3 inputDirection = GetInputDirection();
 
         float speed = ComputeSpeed(inputDirection);
 
-        if (currentMovementMode != MovementMode.Move_Falling)
+        if (currentMovementMode == MovementMode.Move_Running || currentMovementMode == MovementMode.Move_Swimming)
         {
             if (inputDirection.sqrMagnitude > 0.0f)
             {
@@ -201,11 +206,6 @@ public class ThirdPersonController : MonoBehaviour
                     break;
 
                 default: break;
-            }
-
-            if (inputDirection.sqrMagnitude == 0.0f)
-            {
-                targetSpeed = 0.0f;
             }
 
             targetSpeed *= inputDirection.sqrMagnitude;
