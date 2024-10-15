@@ -429,6 +429,7 @@ public class ThirdPersonController : MonoBehaviour
     {
         useGamepad = (playerInput.currentControlScheme == gamepadScheme);
     }
+    
 
     private void OnDrawGizmosSelected()
     {
