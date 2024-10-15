@@ -6,13 +6,13 @@ using UnityEngine;
 [Serializable]
 public class PlayerAnimationData
 {
-    public Animator animator;
+    [SerializeField] private Animator animator;
 
-    public string moveSpeedParameterName = "MoveSpeed";
-    public string jumpTriggerParameterName = "Jump";
-    public string isFallingParameterName = "IsFalling";
-    public string hardLandTriggerParameterName = "HardLand";
-    public string isSwimmingParameterName = "isSwimming";
+    [SerializeField] private string moveSpeedParameterName = "MoveSpeed";
+    [SerializeField] private string jumpTriggerParameterName = "Jump";
+    [SerializeField] private string isFallingParameterName = "IsFalling";
+    [SerializeField] private string hardLandTriggerParameterName = "HardLand";
+    [SerializeField] private string isSwimmingParameterName = "isSwimming";
 
     // animation IDs
     public int animIDMoveSpeed { get; private set; }

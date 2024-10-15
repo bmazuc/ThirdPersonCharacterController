@@ -4,26 +4,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public struct LayerDetectionSphere
+public class LayerDetectionSphere
 {
     [Header("Data")]
-    public float detectionOffset;
-    public float detectionRadius;
-    public LayerMask layers;
+    [SerializeField] private float detectionOffset = 0.0f;
+    [SerializeField] private float detectionRadius = 0.28f;
+    [SerializeField] private LayerMask layers;
 
     [Header("Draw")]
-    public bool draw;
-    public Color drawColor;
-
-    public LayerDetectionSphere(float inDetectionOffset, float inDetectionRadius)
-    {
-        detectionOffset = inDetectionOffset;
-        detectionRadius = inDetectionRadius;
-        layers = new LayerMask();
-
-        draw = false;
-        drawColor = Color.white;
-    }
+    [SerializeField] private bool draw = false;
+    [SerializeField] private Color drawColor;
 
     public bool CheckSphere(Vector3 spherePosition)
     {

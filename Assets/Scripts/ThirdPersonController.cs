@@ -19,60 +19,60 @@ public enum MovementMode
 public class ThirdPersonController : MonoBehaviour
 {
     [Header("General")]
-    public MovementMode defaultMovementMode = MovementMode.Move_Running;
-    public MovementMode currentMovementMode;
+    [SerializeField] private MovementMode defaultMovementMode = MovementMode.Move_Running;
+    private MovementMode currentMovementMode;
 
     [Tooltip("How fast the character turns to face movement direction")]
     [Min(0.0f)]
-    public float rotationSmoothTime = 0.12f;
+    [SerializeField] private float rotationSmoothTime = 0.12f;
     [Tooltip("Offset for max speed reaching")]
-    public float maxSpeedOffset = 0.1f;
+    [SerializeField] private float maxSpeedOffset = 0.1f;
 
     [Header("Running")]
     [Tooltip("Run speed of the character")]
-    public float maxRunSpeed = 6.0f;
+    [SerializeField] private float maxRunSpeed = 6.0f;
 
     [Tooltip("Walk speed of the character. Used on pc for toggling run/walk")]
-    public float walkSpeed = 2.0f;
+    [SerializeField] private float walkSpeed = 2.0f;
     [Tooltip("Used on pc for toggling run/walk. Should we hold the key ?")]
-    public bool shouldHoldRunKey = false;
+    [SerializeField] private bool shouldHoldRunKey = false;
 
     [Tooltip("Should the character snap to the ground ? Useful for walking down stairs for example. " +
         "\nSnapping is linked to step value from character controller.")]
-    public bool snapToGround = true;
+    [SerializeField] private bool snapToGround = true;
 
     [Tooltip("How many time need to reach the target speed if speed under it")]
-    public float walkAccelerationTime = 0.1f;
+    [SerializeField] private float walkAccelerationTime = 0.1f;
     [Tooltip("How many time need to reach the target speed if speed over it")]
-    public float walkDeccelerationTime = 0.1f;
+    [SerializeField] private float walkDeccelerationTime = 0.1f;
 
     [Header("Jumping/Falling")]
     [Tooltip("The height the player can jump")]
-    public float JumpHeight = 1.2f;
+    [SerializeField] private float JumpHeight = 1.2f;
     [Tooltip("The character uses its own gravity value. The engine default is -9.81f")]
-    public float gravity = -9.81f;
+    [SerializeField] private float gravity = -9.81f;
     [Tooltip("The maximum negative velocity we can reach. Set it to 0.0f to ignore it.")]
-    public float maxFallVelocity = 50.0f;
-    public float minDistanceForHardLanding = 3.0f;
+    [SerializeField] private float maxFallVelocity = 50.0f;
+    [SerializeField] private float minDistanceForHardLanding = 3.0f;
     private Vector3 characterPositionBeforeFall;
 
     [Header("EnvironmentDetection")]
-    public LayerDetectionSphere groundDetectionSphere = new LayerDetectionSphere(0.0f, 0.28f);
-    public LayerDetectionSphere waterDetectionSphere = new LayerDetectionSphere(0.1f, 0.01f);
+    [SerializeField] private LayerDetectionSphere groundDetectionSphere;
+    [SerializeField] private LayerDetectionSphere waterDetectionSphere;
 
     [Header("Swim")]
-    public float maxSwimSpeed = 2.0f;
+    [SerializeField] private float maxSwimSpeed = 2.0f;
     [Tooltip("How many time need to reach the target speed if speed under it")]
-    public float swimAccelerationTime = 0.1f;
+    [SerializeField] private float swimAccelerationTime = 0.1f;
     [Tooltip("How many time need to reach the target speed if speed over it")]
-    public float swimDeccelerationTime = 0.1f;
-    public float swimColliderRadius = 0.84f;
+    [SerializeField] private float swimDeccelerationTime = 0.1f;
+    [SerializeField] private float swimColliderRadius = 0.84f;
 
     [Header("Animation")]
-    public PlayerAnimationData animationData;
+    [SerializeField] private PlayerAnimationData animationData;
 
     [Header("Input")]
-    public string gamepadScheme = "Gamepad";
+    [SerializeField] private string gamepadScheme = "Gamepad";
 
     private bool isRunning = false;
     private bool mustAutoRun = false;
@@ -94,7 +94,7 @@ public class ThirdPersonController : MonoBehaviour
     private float speedVelocity;
     private float rotationVelocity;
 
-    public bool useGamepad = false;
+    private bool useGamepad = false;
 
     private void Awake()
     {
