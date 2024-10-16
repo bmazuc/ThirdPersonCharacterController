@@ -24,6 +24,10 @@ public class AnimationEventHandler : MonoBehaviour
     [SerializeField] private AudioClip landingInWaterAudioClip;
     [SerializeField] private float landingInWaterAudioVolume;
 
+    [Header("Hard landing")]
+    [SerializeField] private AudioClip hardLandingAudioClip;
+    [SerializeField] private float hardLandingAudioVolume;
+
     [Header("Jump grunts")]
     [SerializeField] private AudioClip[] jumpGruntAudioClips;
     [SerializeField] private float jumpGruntAudioVolume;
@@ -71,6 +75,14 @@ public class AnimationEventHandler : MonoBehaviour
         if (landingInWaterAudioClip && footBone)
         {
             AudioSource.PlayClipAtPoint(landingInWaterAudioClip, footBone.transform.position, landingInWaterAudioVolume);
+        }
+    }
+
+    private void OnHardLandingAnim(AnimationEvent animationEvent)
+    {
+        if (hardLandingAudioClip && headBone)
+        {
+            AudioSource.PlayClipAtPoint(hardLandingAudioClip, headBone.transform.position, hardLandingAudioVolume);
         }
     }
 

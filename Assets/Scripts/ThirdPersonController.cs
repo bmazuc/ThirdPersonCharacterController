@@ -88,6 +88,7 @@ public class ThirdPersonController : MonoBehaviour
     private CharacterController characterController;
     private GameObject mainCamera;
     private bool canMove = true;
+    private bool canJump = true;
     private float baseColliderRadius;
 
     // Smooth damp velocities
@@ -370,6 +371,11 @@ public class ThirdPersonController : MonoBehaviour
         canMove = enabled;
     }
 
+    public void EnableJump(bool enabled)
+    {
+        canJump = enabled;
+    }
+
     // Inputs
 
     public void OnMovementInput(InputAction.CallbackContext context)
@@ -395,7 +401,7 @@ public class ThirdPersonController : MonoBehaviour
 
     public void OnJumpInput(InputAction.CallbackContext context)
     {
-        if (context.started && (currentMovementMode == MovementMode.Move_Running))
+        if (context.started && canJump && (currentMovementMode == MovementMode.Move_Running))
         {
             jumpInput = true;
         }
