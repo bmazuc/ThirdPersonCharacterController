@@ -436,6 +436,10 @@ PrefabInstance:
       propertyPath: snapToGround
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3687359817524666654, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
+      propertyPath: rotateTowardsMovement
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4016220467036205962, guid: ac54cb13fa89ac942bc4c5b28ab3fa7a, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.size
       value: 0
