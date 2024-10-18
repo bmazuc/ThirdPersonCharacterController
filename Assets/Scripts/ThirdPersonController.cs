@@ -7,6 +7,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.Windows;
 
+// The different ways a character can move
 public enum MovementMode
 {
     Move_None,
@@ -15,6 +16,10 @@ public enum MovementMode
     Move_Swimming,
 }
 
+/**
+ * A class to manage character movements and handle player inputs.
+ * It complements the built-in character controller.
+ */
 [RequireComponent(typeof(CharacterController))]
 public class ThirdPersonController : MonoBehaviour
 {
@@ -27,6 +32,8 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField] private float rotationSmoothTime = 0.12f;
     [Tooltip("Offset for max speed reaching")]
     [SerializeField] private float maxSpeedOffset = 0.1f;
+    [Tooltip("Should the character rotate towards the input direction ?")]
+    [SerializeField] private bool rotateTowardsMovement = true;
 
     [Header("Running")]
     [Tooltip("Run speed of the character")]
@@ -53,7 +60,9 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField] private float gravity = -9.81f;
     [Tooltip("The maximum negative velocity we can reach. Set it to 0.0f to ignore it.")]
     [SerializeField] private float maxFallVelocity = 50.0f;
+    [Tooltip("The minimum distance required when falling to be considered hard landing.")]
     [SerializeField] private float minDistanceForHardLanding = 3.0f;
+    // Register the character position at the fall start for hard landing computations.
     private Vector3 characterPositionBeforeFall;
 
     [Header("EnvironmentDetection")]
@@ -61,41 +70,54 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField] private LayerDetectionSphere waterDetectionSphere;
 
     [Header("Swim")]
+    [Tooltip("Swim speed of the character")]
     [SerializeField] private float maxSwimSpeed = 2.0f;
     [Tooltip("How many time need to reach the target speed if speed under it")]
     [SerializeField] private float swimAccelerationTime = 0.1f;
     [Tooltip("How many time need to reach the target speed if speed over it")]
     [SerializeField] private float swimDeccelerationTime = 0.1f;
+    // Allow to modify the character collider radius when swimming. Useful as we go from a vertical to an horizontal position.
+    [Tooltip("Which is the character collider radius when swimming")]
     [SerializeField] private float swimColliderRadius = 0.84f;
 
     [Header("Animation")]
     [SerializeField] private PlayerAnimationData animationData;
 
     [Header("Input")]
+    [Tooltip("What is the control scheme associated to gamepad")]
     [SerializeField] private string gamepadScheme = "Gamepad";
 
+    // Is the character running ? Used on PC as keyboard have "binary" magnitude.
     private bool isRunning = false;
     private bool mustAutoRun = false;
     private bool areMoveKeyReleasedWhileAutoRun = false;
     private bool isJumping = false;
+
+    // Input values
     private Vector2 moveInput = Vector2.zero;
     private bool jumpInput = false;
 
+    // The rotation towards the character is smooth damping
     private float targetRotation = 0.0f;
-
+    // Character velocity. Compute and apply in Update.
     private Vector3 velocity;
 
-    private CharacterController characterController;
-    private GameObject mainCamera;
+    // Can the player move the character ?
     private bool canMove = true;
+    // Can the player make jump the character ?
     private bool canJump = true;
+    // Register the character collider default radius to reset it when swimming.
     private float baseColliderRadius;
 
     // Smooth damp velocities
     private float speedVelocity;
     private float rotationVelocity;
 
+    // Are the player using a gamepad ? Use for speed computation.
     private bool useGamepad = false;
+
+    private CharacterController characterController;
+    private GameObject mainCamera;
 
     private void Awake()
     {
@@ -137,6 +159,7 @@ public class ThirdPersonController : MonoBehaviour
         characterController.Move(velocity * Time.deltaTime);
     }
 
+    // Compute the character move velocity.
     private void Move()
     {
         if (currentMovementMode == MovementMode.Move_Falling || currentMovementMode == MovementMode.Move_None)
@@ -150,28 +173,38 @@ public class ThirdPersonController : MonoBehaviour
 
         if (currentMovementMode == MovementMode.Move_Running || currentMovementMode == MovementMode.Move_Swimming)
         {
-            if (inputDirection.sqrMagnitude > 0.0f)
+            if (rotateTowardsMovement)
             {
                 // Make the character rotate toward the input relatively to the camera
-                targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
-                if (!mustAutoRun)
+                if (inputDirection.sqrMagnitude > 0.0f)
                 {
-                    targetRotation += mainCamera.transform.eulerAngles.y;
+                    targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+                    if (!mustAutoRun)
+                    {
+                        targetRotation += mainCamera.transform.eulerAngles.y;
+                    }
+
+                    float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
+                    transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
                 }
 
-                float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
-                transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
-            }
-        
-            Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+                // Move the character forward
+                Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
 
-            Vector3 moveVelocity = targetDirection.normalized * speed;
-            velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
+                Vector3 moveVelocity = targetDirection.normalized * speed;
+                velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
+            }
+            else
+            {
+                Vector3 moveVelocity = inputDirection.normalized * speed;
+                velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
+            }
         }
 
         animationData.SetFloat(animationData.animIDMoveSpeed, speed); 
     }
 
+    // In which direction does the player input points to. If we auto run, we just considered it as character forward.
     private Vector3 GetInputDirection()
     {
         if (mustAutoRun)
@@ -187,6 +220,7 @@ public class ThirdPersonController : MonoBehaviour
         return new Vector3(moveInput.x, 0.0f, moveInput.y);
     }
 
+    // Compute the character speed
     private float ComputeSpeed(Vector3 inputDirection)
     {
         float targetSpeed = 0.0f;
@@ -196,6 +230,7 @@ public class ThirdPersonController : MonoBehaviour
             {
                 case MovementMode.Move_Running:
                     {
+                        // When using gamepad, we always use run speed who will be modified by input magnitude
                         targetSpeed = (isRunning || useGamepad) ? maxRunSpeed : walkSpeed;
                     }
                     break;
@@ -210,6 +245,8 @@ public class ThirdPersonController : MonoBehaviour
             }
 
             targetSpeed *= inputDirection.sqrMagnitude;
+
+            // Check if we are already at the wanted speed or if we need to accelerate or deccelerate.
 
             float currentHorizontalSpeed = new Vector3(velocity.x, 0.0f, velocity.z).magnitude;
 
@@ -230,6 +267,7 @@ public class ThirdPersonController : MonoBehaviour
         return targetSpeed;
     }
 
+    // Compute the acceleration or decceleration modifier.
     private float GetSpeedChangeTime(bool mustAccelerate)
     {
         switch (currentMovementMode)
@@ -249,12 +287,14 @@ public class ThirdPersonController : MonoBehaviour
         }
     }
 
+    // Are we in water ? Apply the behaviour of entering or exiting it.
     private bool CheckIfInWater()
     {
         bool detectWater = waterDetectionSphere.CheckSphere(transform.position);
 
         switch (currentMovementMode)
         {
+            // Enter water
             case MovementMode.Move_Running:
             case MovementMode.Move_Falling:
                 {
@@ -266,6 +306,7 @@ public class ThirdPersonController : MonoBehaviour
                     }
                 } break;
 
+            // When getting out of water, we reset the character controller radius.
             case MovementMode.Move_Swimming:
                 {
                     if (!detectWater)
@@ -282,14 +323,14 @@ public class ThirdPersonController : MonoBehaviour
         return detectWater;
     }
 
-    // Use a custom ground check instead of charactercontroller isGrounded as the built-in value
-    // doen't seems to be reliable
+    // Use a custom ground check instead of charactercontroller isGrounded as the built-in value doesn't seems to be reliable
     private void CheckIfGrounded()
     {
         bool detectGround = groundDetectionSphere.CheckSphere(transform.position);
 
         switch (currentMovementMode)
         {
+            // Apply falling behaviour
             case MovementMode.Move_Running:
                 {
                     if (!detectGround)
@@ -304,6 +345,7 @@ public class ThirdPersonController : MonoBehaviour
                     }
                 } break;
 
+            // When landing, are we hard landing ?
             case MovementMode.Move_Falling:
                 {
                     if (detectGround)
@@ -315,6 +357,7 @@ public class ThirdPersonController : MonoBehaviour
                     }
                 } break;
 
+            // When getting out of water, are we on ground or falling ?
             case MovementMode.Move_Swimming:
                 {
                     currentMovementMode = detectGround ? MovementMode.Move_Running : MovementMode.Move_Falling;
@@ -326,6 +369,7 @@ public class ThirdPersonController : MonoBehaviour
         animationData.SetBool(animationData.animIDIsFalling, !detectGround);
     }
 
+    // Compute and apply a force to the velocity to make the character reach jump height
     private void Jump()
     {
         if (jumpInput && (currentMovementMode == MovementMode.Move_Running))
@@ -340,10 +384,12 @@ public class ThirdPersonController : MonoBehaviour
         }
     }
 
+    // Apply the gravity to the velocity following the current movement mode.
     private void ApplyGravity()
     {
         switch (currentMovementMode)
         {
+            // When falling we want to simulate gravity
             case MovementMode.Move_Falling:
                 {
                     velocity.y += gravity * Time.deltaTime;
@@ -354,6 +400,7 @@ public class ThirdPersonController : MonoBehaviour
                     }
                 } break;
 
+            // When running we snap to the ground if we are not jumping.
             case MovementMode.Move_Running:
                 {
                     if (!isJumping)
@@ -366,11 +413,13 @@ public class ThirdPersonController : MonoBehaviour
         }
     }
 
+    // Allow the character to move ?
     public void EnableMovement(bool enabled)
     {
         canMove = enabled;
     }
 
+    // Allow the character to jump ?
     public void EnableJump(bool enabled)
     {
         canJump = enabled;
@@ -380,6 +429,8 @@ public class ThirdPersonController : MonoBehaviour
 
     public void OnMovementInput(InputAction.CallbackContext context)
     {
+        // Disable the auto run if the player press another key.
+        // Checks are done to avoid disabling it when the player press auto run and is holding move keys.
         if (mustAutoRun)
         {
             if (context.canceled)
@@ -435,11 +486,13 @@ public class ThirdPersonController : MonoBehaviour
     {
         useGamepad = (playerInput.currentControlScheme == gamepadScheme);
     }
-    
 
+#if UNITY_EDITOR
+    // Display the two environment detections spheres.
     private void OnDrawGizmosSelected()
     {
         groundDetectionSphere.Draw(transform.position);
         waterDetectionSphere.Draw(transform.position);
     }
+#endif
 }

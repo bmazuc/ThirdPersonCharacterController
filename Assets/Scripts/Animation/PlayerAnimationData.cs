@@ -3,10 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/**
+ * A class to manage the link to the animator component.
+ */
 [Serializable]
 public class PlayerAnimationData
 {
+    // The animator component.
     [SerializeField] private Animator animator;
+
+    // animation parameters as named in the animator. Will be used to generate the ids.
 
     [SerializeField] private string moveSpeedParameterName = "MoveSpeed";
     [SerializeField] private string jumpTriggerParameterName = "Jump";
@@ -21,6 +27,7 @@ public class PlayerAnimationData
     public int animIDHardLand { get; private set; }
     public int animIDIsSwimming { get; private set; }
 
+    // Generated the differents parameter id from the strings 
     public void AssignAnimationIDs()
     {
         animIDMoveSpeed = Animator.StringToHash(moveSpeedParameterName);
@@ -29,6 +36,9 @@ public class PlayerAnimationData
         animIDHardLand = Animator.StringToHash(hardLandTriggerParameterName);
         animIDIsSwimming = Animator.StringToHash(isSwimmingParameterName);
     }
+
+
+    // Helper functions who contains the validity check of the animator
 
     public void SetFloat(int id, float value)
     {
