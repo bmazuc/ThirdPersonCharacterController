@@ -32,8 +32,6 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField] private float rotationSmoothTime = 0.12f;
     [Tooltip("Offset for max speed reaching")]
     [SerializeField] private float maxSpeedOffset = 0.1f;
-    [Tooltip("Should the character rotate towards the input direction ?")]
-    [SerializeField] private bool rotateTowardsMovement = true;
 
     [Header("Running")]
     [Tooltip("Run speed of the character")]
@@ -173,32 +171,24 @@ public class ThirdPersonController : MonoBehaviour
 
         if (currentMovementMode == MovementMode.Move_Running || currentMovementMode == MovementMode.Move_Swimming)
         {
-            if (rotateTowardsMovement)
+            // Make the character rotate toward the input relatively to the camera
+            if (inputDirection.sqrMagnitude > 0.0f)
             {
-                // Make the character rotate toward the input relatively to the camera
-                if (inputDirection.sqrMagnitude > 0.0f)
+                targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
+                if (!mustAutoRun)
                 {
-                    targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
-                    if (!mustAutoRun)
-                    {
-                        targetRotation += mainCamera.transform.eulerAngles.y;
-                    }
-
-                    float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
-                    transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
+                    targetRotation += mainCamera.transform.eulerAngles.y;
                 }
 
-                // Move the character forward
-                Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+                float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetRotation, ref rotationVelocity, rotationSmoothTime);
+                transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
+            }
 
-                Vector3 moveVelocity = targetDirection.normalized * speed;
-                velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
-            }
-            else
-            {
-                Vector3 moveVelocity = inputDirection.normalized * speed;
-                velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
-            }
+            // Move the character forward
+            Vector3 targetDirection = Quaternion.Euler(0.0f, targetRotation, 0.0f) * Vector3.forward;
+
+            Vector3 moveVelocity = targetDirection.normalized * speed;
+            velocity.Set(moveVelocity.x, velocity.y, moveVelocity.z);
         }
 
         animationData.SetFloat(animationData.animIDMoveSpeed, speed); 
